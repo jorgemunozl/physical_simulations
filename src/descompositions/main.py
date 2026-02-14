@@ -1,4 +1,4 @@
-#usr/bin/python
+#!/usr/bin/env python3
 import numpy as np
 
 
@@ -37,14 +37,18 @@ def absolute_error(A, E):
 
 
 # Norma de la matriz A usando metrica euclidea
-A = np.array([[1.0, 1.0, 1.0],
-              [2.0, 1.0, 7.0],
-              [4.0, 5.0, 1.0]])
+A = np.array([[7.0, -4.0, -5.0, -7.0],
+              [-6.0, -1.0, -1.0, -3.0],
+              [5.0, 5.0, 0.0,  -4.],
+              [-1.0, 4.0, -4.0, 4.0]])
+
 
 A_clone = A.copy()  # tranpose modify the original matrix
 print("A:\n", A)
 e, R = gram_schmidt(A.transpose(), A.shape[0])
 Q = np.array(e)
+print("Q: \n", Q)
+print("R: \n", R)
 E = Q.transpose()@R
 print("QR:\n", E)
 print("Print Absolute Error:", absolute_error(A_clone, E))
