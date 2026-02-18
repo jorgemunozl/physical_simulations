@@ -26,7 +26,7 @@ def hydrogen_density(n: int, l: int, m: int, r: np.ndarray,
 
 def plot_density(n: int, l: int, m: int, save: str | None = None) -> None:
     """Plot |ψ|² cross-section in the xz-plane (y=0)."""
-    limit = 2 * n * (n + 2)
+    limit = 2 * n * (n)
     pts = 600
     x = np.linspace(-limit, limit, pts)
     z = np.linspace(-limit, limit, pts)
