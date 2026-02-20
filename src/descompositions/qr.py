@@ -50,5 +50,10 @@ Q = np.array(e)
 print("Q: \n", Q)
 print("R: \n", R)
 E = Q.transpose()@R
+
+# QQ^T = I
+print("QQ^T: \n", Q@Q.transpose())
+
+
 print("QR:\n", E)
 print("Print Absolute Error:", absolute_error(A_clone, E))
