@@ -1,8 +1,6 @@
 # Physical
-
-Small math and physics experiments, simulations, and visualizations.
-
-This repository is not a single polished package. It is a playground for testing ideas: stochastic processes, numerical integration, optics, sampling, quantum-inspired numerics, and a few supporting math utilities.
+Small math and physics experiments, simulations, and visualizations that I did because curiosity or fun.
+This repo is a playground for testing ideas: stochastic processes, numerical integration, optics, sampling, quantum-inspired numerics, and a few supporting math utilities.
 
 ## Topic Index
 
@@ -68,30 +66,4 @@ This repository is not a single polished package. It is a playground for testing
 - `src/a.ipynb`
   Notebook workspace for ad hoc exploration.
 
-## Suggested Entry Points
-
-If you want a quick sense of the repo, start here:
-
-- `src/optics/refraction.py` for a clean, self-contained physics visualization.
-- `src/integrals/surface_integral.py` for the most reusable numerical-analysis code.
-- `src/brownian/main.py` for the simplest stochastic simulation.
-- `src/dft/dft.py` for a compact quantum-inspired numerical experiment.
-
-## Running Things
-
-Most scripts are standalone and can be run directly from the repository root, for example:
-
-```bash
-python src/brownian/main.py
-python src/integrals/riemann.py
-python src/optics/refraction.py --show
-python src/integrals/surface_integral.py --demo
-```
-
-Some experiments use extra scientific or ML dependencies such as `numpy`, `matplotlib`, `scipy`, and `torch`.
-
-## Notes
-
-- The codebase mixes quick sketches with more structured modules.
-- Some folders contain generated media alongside source files.
-- Naming is intentionally left close to the original experiments rather than normalized into a formal package.
+Some experiments use extra scientific or ML dependencies such as `numpy`, `matplotlib`, `scipy`, and `torch` as usual, so get fun!
