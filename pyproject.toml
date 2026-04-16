@@ -8,4 +8,5 @@ dependencies = [
     "matplotlib>=3.10.7",
     "numpy>=2.3.5",
     "scipy>=1.17.0",
+    "sympy>=1.14.0",
 ]
