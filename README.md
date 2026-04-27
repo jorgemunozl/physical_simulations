@@ -1,69 +1,89 @@
-# Physical
-Small math and physics experiments, simulations, and visualizations that I did because curiosity or fun.
-This repo is a playground for testing ideas: stochastic processes, numerical integration, optics, sampling, quantum-inspired numerics, and a few supporting math utilities.
+# Physical simulations
 
-## Topic Index
+Small math and physics experiments, simulations, and visualizations—mostly for curiosity and learning. This repository is a playground for stochastic processes, numerical integration, differential equations, optics, sampling, quantum-inspired numerics, and a few supporting utilities.
 
-### Stochastic Processes
+## Setup
 
-- `src/brownian/`
-  Brownian motion experiments in 1D and 3D, plus scripts for generating animations.
-- `src/mh/`
-  Metropolis-Hastings sampling with a Gaussian target and a lightweight sampler implementation in PyTorch.
+Python **3.13+** (see `.python-version`). Dependencies are declared in `pyproject.toml` (NumPy, SciPy, SymPy, Matplotlib) and locked in `uv.lock`.
 
-### Numerical Integration
+```bash
+cd physical_simulations
+uv sync
+```
 
-- `src/integrals/line_integral.py`
-  Numerical line integral along a parametric curve.
-- `src/integrals/riemann.py`
-  Riemann-sum and trapezoidal integration experiments, with derivative and cumulative-integral plots.
-- `src/integrals/surface_integral.py`
-  More structured numerical surface-integral code for scalar surface integrals and flux through parametric surfaces.
+Some scripts additionally expect **PyTorch** (for example `src/metropolis_hasting/`, `src/kans/`, and `src/matplotlib/main.py`). Install it in the same environment when you need those modules.
+
+## Topic index
+
+### Stochastic processes
+
+- `src/brownian/`  
+  Brownian motion in 1D and 3D, plus scripts for generating animations.
+- `src/metropolis_hasting/`  
+  Metropolis–Hastings sampling with a Gaussian target and a small PyTorch-based sampler (`MH.py`).
+
+### Numerical integration
+
+- `src/integrals/line_integral.py`  
+  Line integral along a parametric curve.
+- `src/integrals/riemann.py`  
+  Riemann and trapezoidal rules, with derivative and cumulative-integral plots.
+- `src/integrals/surface_integral.py`  
+  Scalar surface integrals and flux through parametric surfaces.
+
+### Differential equations
+
+- `src/differential_equations/`  
+  Numerical ODE experiments and Wronskian-related code.
+- `src/de_integration_me/`  
+  2D vector-field examples integrated with naive stepping, finite differences, and RK4.
+- `src/curricular/mathematics_methods_lab_01/`  
+  Course lab material: symbolic DEs, Euler method, numerical comparison, Wronskian script, LaTeX report (`main.tex`), and supporting assets.
 
 ### Optics
 
-- `src/optics/refraction.py`
-  Refraction at a planar interface via Snell's law, including static plots and GIF animation.
-- `src/optics/`
-  Also contains rendered outputs such as `refraction.png` and `tir.gif`.
+- `src/optics/refraction.py`  
+  Refraction at a planar interface (Snell’s law), static plots and GIF animation.  
+  Rendered outputs live under `src/optics/` (for example `refraction.png`, `tir.gif`).
 
-### Quantum / Electronic Structure
+### Quantum / electronic structure
 
-- `src/dft/dft.py`
-  A finite-difference density-functional toy model for hydrogen-like radial states.
+- `src/dft/dft.py`  
+  Finite-difference density-functional toy model for hydrogen-like radial states.
 
-### Mathematical Physics
+### Classical / mathematical physics
 
-- `src/physical/spherical_armonics/main.py`
-  Legendre and associated Legendre polynomial experiments connected to spherical harmonics.
-- `src/physical/magnetic_field/main.py`
-  Early magnetic-field utilities based on point or wire geometry.
-- `src/experimental_magnetic_field/main.py`
-  Simple plotting of experimental magnetic-field versus current data.
+- `src/spherical_armonics/main.py`  
+  Legendre and associated Legendre experiments tied to spherical harmonics.
+- `src/magnetic_field/main.py`  
+  Magnetic-field sketches from simple wire or point geometry.
+- `src/experimental_magnetic_field/main.py`  
+  Plotting experimental magnetic-field versus current data.
+- `src/vector_fields/vector_fields.py`  
+  Small library of illustrative 2D fields and plots.
 
-### Linear Algebra
+### Linear algebra and fitting
 
-- `src/descompositions/main.py`
-  Gram-Schmidt orthonormalization, QR-style reconstruction, and reconstruction error checks.
+- `src/descompositions/main.py`  
+  Gram–Schmidt orthonormalization, QR-style reconstruction, and error checks.
+- `src/least_squares/least_squares.py`  
+  Linear least squares via the normal equation.
 
-### Neural / Approximation Experiments
+### Neural / approximation experiments
 
-- `src/kans/main.py`
-  A scratch implementation of a Kolmogorov-Arnold Network style layer trained on a toy regression task.
+- `src/kans/main.py`  
+  Scratch Kolmogorov–Arnold style layer on a toy regression task (PyTorch).
 
-### Visualization Utilities
+### Visualization utilities
 
-- `src/matplotlib/main.py`
-  Plotting helpers for heat-equation style comparisons, errors, scalar fields, and 3D views.
+- `src/matplotlib/main.py`  
+  Heat-equation-style comparisons, errors, scalar fields, and 3D views (uses PyTorch in places).
 
-### Concurrency Notes
+### Concurrency
 
-- `src/async/async.py`
-  Small async vs threading comparison for I/O-bound tasks.
+- `src/async/async.py`  
+  Small async versus threading comparison for I/O-bound work.
 
-### Notebooks
+---
 
-- `src/a.ipynb`
-  Notebook workspace for ad hoc exploration.
-
-Some experiments use extra scientific or ML dependencies such as `numpy`, `matplotlib`, `scipy`, and `torch` as usual, so get fun!
+Most entry points are plain scripts: run them with `uv run python path/to/script.py` after `uv sync`. Have fun experimenting.
