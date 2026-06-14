@@ -18,8 +18,8 @@ from manim import (
 
 # ── Settings ──────────────────────────────────────────────────────────
 DATA_PATH = Path(__file__).parent / "data" / "double_pendulum.npy"
-ANIM_DURATION = 2.0  # desired total playback duration in scene-seconds
-RENDER_FPS = 15  # must match the -ql/--fps flag you pass to manim
+ANIM_DURATION = 10.0  # desired total playback duration in scene-seconds
+RENDER_FPS = 60  # must match the -ql/--fps flag you pass to manim
 #   -ql → 15 fps | -qm → 30 fps | -qh/-qk → 60 fps
 SUBSAMPLING = 1  # extra trail thinning (1 = every rendered step)
 

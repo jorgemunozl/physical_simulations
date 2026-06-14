@@ -14,5 +14,4 @@ dependencies = [
 [dependency-groups]
 animation = [
     "manim>=0.20.1",
-    "typst>=0.14.9",
 ]

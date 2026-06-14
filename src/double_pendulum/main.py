@@ -1,5 +1,5 @@
 import numpy as np
-
+import os
 # Physical parameters for the double pendulum
 M1 = 1.0
 M2 = 1.0
@@ -79,6 +79,7 @@ def main():
     for i in range(steps):
         u[i + 1] = rk4_step(F, t[i], u[i], h)
 
+    os.makedirs("data", exist_ok=True)
     np.save("data/double_pendulum.npy", u)
     # Save the results
     # np.save("angles_1.npy", angles_1)
