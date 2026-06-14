@@ -1,47 +1,41 @@
-from dataclasses import dataclass
-
-import matplotlib.pyplot as plt
 import numpy as np
 
+# Physical parameters for the double pendulum
+M1 = 1.0
+M2 = 1.0
+L1 = 1.0
+L2 = 1.0
+GRAVITY = 9.81
+TOTAL_MASS = M1 + M2
 
-@dataclass
-class PendulumState:
-    m1: float
-    m2: float
-    theta_1: float
-    theta_2: float
-    omega_1: float
-    omega_2: float
-    M: float
-    l1: float
-    l2: float
-    gravity: float
-    h: float
-    time: float
+# Initial conditions
+INITIAL_ANGLES = [np.pi / 2, np.pi / 2]  # theta_1, theta_2
+INITIAL_VELOCITIES = [0.0, 0.0]  # omega_1, omega_2
 
 
 def d2theta1(theta_1, theta_2, omega_1, omega_2):
-
     diff = theta_1 - theta_2
-    alpha = m1 + m2 * np.sin(diff) ** 2
+    alpha = M1 + M2 * np.sin(diff) ** 2
     # θ₁'' = [m₂·g·sin(θ₂)·cos(Δ) - m₂·l₁·ω₁²·sin(Δ)·cos(Δ) - m₂·l₂·ω₂²·sin(Δ) - (m₁+m₂)·g·sin(θ₁)] / [l₁·(m₁ + m₂·sin²(Δ))]
     numerator = (
-        m2 * gravity * np.sin(theta_2) * np.cos(diff)
-        - m2 * l1 * omega_1**2 * np.sin(diff) * np.cos(diff)
-        - m2 * l2 * omega_2**2 * np.sin(diff)
-        - M * GRAVITY * np.sin(theta_1)
+        M2 * GRAVITY * np.sin(theta_2) * np.cos(diff)
+        - M2 * L1 * omega_1**2 * np.sin(diff) * np.cos(diff)
+        - M2 * L2 * omega_2**2 * np.sin(diff)
+        - TOTAL_MASS * GRAVITY * np.sin(theta_1)
     )
-    return numerator / (alpha * l1)
+    return numerator / (alpha * L1)
 
 
 def d2theta2(theta_1, theta_2, omega_1, omega_2):
     diff = theta_1 - theta_2
-    alpha = m1 + m2 * np.sin(diff) ** 2
+    alpha = M1 + M2 * np.sin(diff) ** 2
     first_term = np.sin(diff) * (
-        M * l1 * omega_1**2 + m2 * l2 * omega_2**2 * np.cos(diff)
+        TOTAL_MASS * L1 * omega_1**2 + M2 * L2 * omega_2**2 * np.cos(diff)
     )
-    second_term = GRAVITY * (M * np.sin(theta_1) * np.cos(diff) - M * np.sin(theta_2))
-    return (first_term + second_term) / (alpha * l2)
+    second_term = GRAVITY * (
+        TOTAL_MASS * np.sin(theta_1) * np.cos(diff) - TOTAL_MASS * np.sin(theta_2)
+    )
+    return (first_term + second_term) / (alpha * L2)
 
 
 def rk4_step(f, t, u, h):
@@ -64,8 +58,8 @@ def F(t, u, second_theta_1, second_theta_2):
 
 
 def main():
-    steps = 100000
-    time_steps = 100
+    steps = 10000
+    time_steps = 10
 
     u_0 = np.array(
         [
@@ -85,16 +79,12 @@ def main():
     for i in range(steps):
         u[i + 1] = rk4_step(F, t[i], u[i], h)
 
-    angles_1 = u[:, 0]
-    angles_2 = u[:, 2]
+    np.save("data/double_pendulum.npy", u)
+    # Save the results
+    # np.save("angles_1.npy", angles_1)
+    # np.save("angles_2.npy", angles_2)
+    print("Saved.")
 
-    x_1 = l1 * np.sin(angles_1)
-    y_1 = -l1 * np.cos(angles_1)
-    x_2 = l2 * np.sin(angles_2) + x_1
-    y_2 = -l2 * np.cos(angles_2) + y_1
 
-    fig, ax = plt.subplots()
-    # ax.plot(x_1, y_1, label="pendulum 1")
-    ax.plot(x_2, y_2, label="pendulum 2")
-    ax.legend()
-    plt.show()
+if __name__ == "__main__":
+    main()

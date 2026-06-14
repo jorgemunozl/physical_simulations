@@ -8,7 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
-
+src/double_pendulum/data/
+src/double_pendulum/media/
 *.pdf
 *.zip
 src/curricular/mathematics_methods_lab_01/images/analitico/*
