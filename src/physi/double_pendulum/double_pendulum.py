@@ -48,7 +48,85 @@ def rk4_step(f, t, u, h):
     return u + (k1 + 2 * k2 + 2 * k3 + k4) / 6
 
 
-# Theta update
+def adaptive_rk4_step(f, t, u, h):
+    """
+    Adaptive RK4 (RKF45) step using the Runge-Kutta-Fehlberg method.
+
+    Computes both a 4th-order and a 5th-order solution from the same
+    set of evaluations.  The difference gives an estimate of the local
+    truncation error, which can be used for step-size control.
+
+    Parameters
+    ----------
+    f : callable
+        RHS function with signature f(t, u, d2theta1, d2theta2).
+    t : float
+        Current time.
+    u : ndarray
+        Current state vector.
+    h : float
+        Step size.
+
+    Returns
+    -------
+    u5 : ndarray
+        5th-order accurate solution at t + h.
+    error : ndarray
+        Element-wise estimated error (|u5 - u4|).
+    """
+    # RKF45 Butcher tableau                          # order
+    #                                                # 4th    5th
+    # 0      |
+    # 1/4    | 1/4
+    # 3/8    | 3/32      9/32
+    # 12/13  | 1932/2197  -7200/2197  7296/2197
+    # 1      | 439/216    -8          3680/513    -845/4104
+    # 1/2    | -8/27      2           -3544/2565  1859/4104  -11/40
+    # -----------------------------------------------------------
+    #        | 25/216     0           1408/2565   2197/4104  -1/5      0
+    #        | 16/135     0           6656/12825  28561/56430 -9/50    2/55
+
+    # Stage coefficients
+    a2, a3, a4, a5, a6 = 1 / 4, 3 / 8, 12 / 13, 1.0, 1 / 2
+
+    b21 = 1 / 4
+    b31, b32 = 3 / 32, 9 / 32
+    b41, b42, b43 = 1932 / 2197, -7200 / 2197, 7296 / 2197
+    b51, b52, b53, b54 = 439 / 216, -8.0, 3680 / 513, -845 / 4104
+    b61, b62, b63, b64, b65 = -8 / 27, 2.0, -3544 / 2565, 1859 / 4104, -11 / 40
+
+    # 4th-order coefficients
+    c1, c3, c4, c5 = 25 / 216, 1408 / 2565, 2197 / 4104, -1 / 5
+    # 5th-order coefficients
+    d1, d3, d4, d5, d6 = 16 / 135, 6656 / 12825, 28561 / 56430, -9 / 50, 2 / 55
+
+    k1 = h * f(t, u, d2theta1, d2theta2)
+    k2 = h * f(t + a2 * h, u + b21 * k1, d2theta1, d2theta2)
+    k3 = h * f(t + a3 * h, u + b31 * k1 + b32 * k2, d2theta1, d2theta2)
+    k4 = h * f(t + a4 * h, u + b41 * k1 + b42 * k2 + b43 * k3, d2theta1, d2theta2)
+    k5 = h * f(
+        t + a5 * h,
+        u + b51 * k1 + b52 * k2 + b53 * k3 + b54 * k4,
+        d2theta1,
+        d2theta2,
+    )
+    k6 = h * f(
+        t + a6 * h,
+        u + b61 * k1 + b62 * k2 + b63 * k3 + b64 * k4 + b65 * k5,
+        d2theta1,
+        d2theta2,
+    )
+
+    # 4th-order approximation (used for error estimation)
+    u4 = u + c1 * k1 + c3 * k3 + c4 * k4 + c5 * k5
+    # 5th-order approximation (accepted solution)
+    u5 = u + d1 * k1 + d3 * k3 + d4 * k4 + d5 * k5 + d6 * k6
+
+    error = np.abs(u5 - u4)
+    return u5, error
+
+
+# Vector State for the double pendulum
 def F(t, u, second_theta_1, second_theta_2):
     # u = [theta_1, omega_1, theta_2, omega_2]
     theta_1, omega_1, theta_2, omega_2 = u
@@ -133,7 +211,7 @@ class DoublePendulumSolver:
         default=Path(""),
         metadata={"description": "Path to save the simulation results as a plot"},
     )
-    method: Literal["rk4", "rk8"] = field(
+    method: Literal["rk4", "rk8", "rk4_adaptive"] = field(
         default="rk4",
         metadata={"description": "Solver method to use"},
     )
@@ -163,6 +241,8 @@ class DoublePendulumSolver:
                 self.solve_rk4()
             elif self.method == "rk8":
                 self.solve_rk8()
+            elif self.method == "rk4_adaptive":
+                self.solve_adaptive_rk4()
             else:
                 raise ValueError(f"Unknown method: {self.method}")
 
@@ -173,13 +253,13 @@ class DoublePendulumSolver:
             self.steps_str = "10e3"
             self.time_str = "10s"
         elif preset == "hard":
-            self.time = 30
-            self.steps = 100000
+            self.time = 40
+            self.steps = 100_000
             self.steps_str = "10e5"
-            self.time_str = "30s"
+            self.time_str = "40s"
         elif preset == "extreme":
             self.time = 100
-            self.steps = 1000000
+            self.steps = 10_000_000
             self.steps_str = "10e6"
             self.time_str = "100s"
         else:
@@ -223,6 +303,127 @@ class DoublePendulumSolver:
         self.save_solution(sol.y.transpose())
         print(f"Saved solution to {self.path_numpy}")
 
+    def solve_adaptive_rk4(
+        self,
+        rtol: float = 1e-6,
+        atol: float = 1e-8,
+        h0: float | None = None,
+        h_min: float = 1e-12,
+        h_max: float | None = None,
+        max_steps: int = 1_000_000,
+    ):
+        """
+        Solve the double pendulum using adaptive RK4 (RKF45).
+
+        The step size is automatically adjusted so that the estimated local
+        error stays within the prescribed tolerances.  At the end the
+        solution is interpolated back onto the uniform time grid
+        ``np.linspace(0, self.time, self.steps + 1)`` for full compatibility
+        with the rest of the class.
+
+        Parameters
+        ----------
+        rtol : float
+            Relative tolerance for error control.
+        atol : float
+            Absolute tolerance for error control.
+        h0 : float or None
+            Initial step size (defaults to ``time / steps``).
+        h_min : float
+            Minimum allowed step size.
+        h_max : float or None
+            Maximum allowed step size (defaults to ``time / 10``).
+        max_steps : int
+            Maximum number of accepted steps before stopping.
+        """
+        u_0 = self.build_initial_conditions()
+        tf = self.time
+
+        # Uniform output grid (same shape as solve_rk4 produces)
+        t_eval = np.linspace(0.0, tf, self.steps + 1)
+
+        if h0 is None:
+            h0 = tf / self.steps
+        if h_max is None:
+            h_max = tf / 10.0
+
+        h = min(h0, h_max)
+        t = 0.0
+        u_current = u_0.copy()
+
+        # Store every accepted step for later interpolation
+        times = [t]
+        solutions = [u_current.copy()]
+
+        safety = 0.9
+        max_factor = 5.0
+        min_factor = 0.1
+
+        accepted = 0
+        rejected = 0
+
+        while t < tf and accepted < max_steps:
+            # Don't overshoot the final time
+            if t + h > tf:
+                h = tf - t
+
+            u_next, error = adaptive_rk4_step(F, t, u_current, h)
+
+            # Weighted error norm (mix of relative & absolute)
+            scale = atol + rtol * np.maximum(np.abs(u_current), np.abs(u_next))
+            error_ratio = np.max(error / scale)
+
+            if error_ratio <= 1.0:
+                # --- accept step ---
+                t += h
+                u_current = u_next.copy()
+                times.append(t)
+                solutions.append(u_current.copy())
+                accepted += 1
+
+                # Increase step size (exponent 1/5 for the 5th-order method)
+                if error_ratio > 1e-15:
+                    h *= min(
+                        max_factor, max(min_factor, safety * error_ratio ** (-1 / 5))
+                    )
+                else:
+                    h *= max_factor
+                h = min(h, h_max)
+
+            else:
+                # --- reject step, reduce step size ---
+                rejected += 1
+                if error_ratio > 1e-15:
+                    h *= max(min_factor, safety * error_ratio ** (-1 / 4))
+                else:
+                    h *= min_factor
+
+                if h < h_min:
+                    # Cannot shrink any further — accept the step anyway
+                    t += h
+                    u_current = u_next.copy()
+                    times.append(t)
+                    solutions.append(u_current.copy())
+                    accepted += 1
+                    h = max(h, h_min)
+
+        # Interpolate the adaptive solution back onto the uniform grid
+        times_arr = np.array(times)
+        solutions_arr = np.array(solutions)
+
+        u = np.zeros((self.steps + 1, 4))
+        for i in range(4):
+            u[:, i] = np.interp(t_eval, times_arr, solutions_arr[:, i])
+
+        # Ensure the initial condition is exact
+        u[0] = u_0
+
+        self.save_solution(u)
+        print(
+            f"Adaptive RK4 completed: {accepted} accepted, {rejected} rejected "
+            f"steps (target grid: {self.steps} points)"
+        )
+
     def get_energy(self, u: np.ndarray) -> np.ndarray:
         # u = [theta_1, omega_1, theta_2, omega_2]
         if u.ndim == 1:
@@ -246,7 +447,7 @@ class DoublePendulumSolver:
         """
         import matplotlib.pyplot as plt
 
-        t = np.linspace(0, self.time, self.steps + 1)
+        t = np.linspace(0, self.time, self.steps)
         u = np.load(self.path_numpy)
         e_self = self.get_energy(u)
         plt.plot(t, e_self, label=f"{self.method}")
@@ -255,7 +456,7 @@ class DoublePendulumSolver:
             solver = DoublePendulumSolver(method=method, preset=preset)
             solver.solve()
             u_odd = np.load(solver.path_numpy)
-            t = np.linspace(0, self.time, self.steps)
+            t = np.linspace(0, self.time, self.steps + 1)
             plt.plot(t, self.get_energy(u_odd), label=f"{method}")
             plt.axhline(self.get_energy(u_odd)[0], color="r", linestyle="--")
 

@@ -10,17 +10,6 @@ Available scenes (set via SCENE variable at the bottom of this file):
 from pathlib import Path
 
 import numpy as np
-
-# Physical parameters — kept in sync with main.py
-from config import (
-    GRAVITY,
-    L1,
-    L2,
-    M1,
-    M2,
-    calc_kinetic_energy,
-    calc_potential_energy,
-)
 from manim import (
     BLUE,
     GREEN,
@@ -37,9 +26,24 @@ from manim import (
     VGroup,
 )
 
+# Physical parameters — kept in sync with main.py
+from .double_pendulum import (
+    GRAVITY,
+    L1,
+    L2,
+    M1,
+    M2,
+    calc_kinetic_energy,
+    calc_potential_energy,
+)
+
 # ── Settings ──────────────────────────────────────────────────────────
-RK4_PATH = Path(__file__).parent / "data" / "30s_10e5_pi_2_pi_2_1.0_-1.0_rk4.npy"
-RK8_PATH = Path(__file__).parent / "data" / "30s_10e5_pi_2_pi_2_1.0_-1.0_rk8.npy"
+RK4_PATH = Path(__file__).parent / "data" / "40s_10e5_pi_2_pi_2_1.0_-1.0_rk4.npy"
+RK8_PATH = Path(__file__).parent / "data" / "40s_10e5_pi_2_pi_2_1.0_-1.0_rk8.npy"
+RK4_ADAPTIVE_PATH = (
+    Path(__file__).parent / "data" / "40s_10e5_pi_2_pi_2_1.0_-1.0_rk4_adaptive.npy"
+)
+
 ANIM_DURATION = 30.0  # desired total playback duration in scene-seconds
 RENDER_FPS = 30  # must match config.quality below (ql→15, qm→30, qh/qk→60)
 SUBSAMPLING = 1  # extra trail thinning (1 = every rendered step)
@@ -52,9 +56,15 @@ def load_aligned_trajectories():
     """Load RK4 and RK8 data, returning (traj_rk4, traj_rk8, num_frames)
     trimmed to the same number of time steps."""
     traj_rk4 = np.load(RK4_PATH)  # (100001, 4)
+    traj_rk4_adaptive = np.load(RK4_ADAPTIVE_PATH)  # (100001, 4)
     traj_rk8 = np.load(RK8_PATH)  # (100000, 4)
-    num_frames = min(len(traj_rk4), len(traj_rk8))
-    return traj_rk4[:num_frames], traj_rk8[:num_frames], num_frames
+    num_frames = min(len(traj_rk4), len(traj_rk4_adaptive), len(traj_rk8))
+    return (
+        traj_rk4[:num_frames],
+        traj_rk4_adaptive[:num_frames],
+        traj_rk8[:num_frames],
+        num_frames,
+    )
 
 
 def cartesian_from_traj(traj):
@@ -291,14 +301,17 @@ class DoublePendulumSideBySide(Scene):
     """
     Left side  → RK4 solver
     Right side → DOP853 (RK8) solver
+
+    Note: use ``DoublePendulumThreeWay`` to see all three solvers together.
     """
 
     def construct(self):
-        traj_rk4, traj_rk8, num_frames = load_aligned_trajectories()
+        traj_rk4, traj_rk4_adaptive, traj_rk8, num_frames = load_aligned_trajectories()
 
         # Use the larger extent from both trajectories for a unified scale
         _, _, x2_4, y2_4 = cartesian_from_traj(traj_rk4)
         _, _, x2_8, y2_8 = cartesian_from_traj(traj_rk8)
+
         scale = compute_scale(
             np.concatenate([x2_4, x2_8]),
             np.concatenate([y2_4, y2_8]),
@@ -401,7 +414,207 @@ class DoublePendulumSideBySide(Scene):
 
 
 # ══════════════════════════════════════════════════════════════════════
-#  Scene 3 — RK4 vs RK8 superimposed (transposed) on the same pivot
+#  Scene 3 — RK4 vs RK4 Adaptive vs RK8, side by side
+# ══════════════════════════════════════════════════════════════════════
+
+
+class DoublePendulumThreeWay(Scene):
+    """
+    Three pendulums side by side:
+
+      Left   → RK4 (fixed step)
+      Centre → RK4 Adaptive
+      Right  → DOP853 (RK8)
+
+    All start from the same initial conditions and evolve in lock-step
+    so you can watch the trajectories diverge due to numerical errors.
+    """
+
+    def construct(self):
+        traj_rk4, traj_rk4_adaptive, traj_rk8, num_frames = load_aligned_trajectories()
+
+        # Unified scale based on the combined extent of all three
+        _, _, x2_4, y2_4 = cartesian_from_traj(traj_rk4)
+        _, _, x2_a, y2_a = cartesian_from_traj(traj_rk4_adaptive)
+        _, _, x2_8, y2_8 = cartesian_from_traj(traj_rk8)
+
+        scale = compute_scale(
+            np.concatenate([x2_4, x2_a, x2_8]),
+            np.concatenate([y2_4, y2_a, y2_8]),
+            screen_half_width=2.2,
+        )
+
+        # Three column centres
+        offset_L = np.array([-5.0, 0.0, 0.0])
+        offset_C = np.array([0.0, 0.0, 0.0])
+        offset_R = np.array([5.0, 0.0, 0.0])
+
+        # ── RK4 (blue/green, yellow trail) ───────────────────────────
+        pts4_p1, pts4_p2, piv4, r4_1, r4_2, m4_1, m4_2, t4 = build_pendulum_objects(
+            traj_rk4,
+            offset_L,
+            rod1_color=BLUE,
+            rod2_color=GREEN,
+            mass1_color=BLUE,
+            mass2_color=GREEN,
+            trail_color=YELLOW,
+            scale=scale,
+        )
+
+        # ── RK4 Adaptive (purple/pink, white trail) ──────────────────
+        PURPLE = "#9B59B6"
+        PINK = "#FF69B4"
+        (
+            pts_a_p1,
+            pts_a_p2,
+            piv_a,
+            r_a_1,
+            r_a_2,
+            m_a_1,
+            m_a_2,
+            t_a,
+        ) = build_pendulum_objects(
+            traj_rk4_adaptive,
+            offset_C,
+            rod1_color=PURPLE,
+            rod2_color=PINK,
+            mass1_color=PURPLE,
+            mass2_color=PINK,
+            trail_color=WHITE,
+            scale=scale,
+        )
+
+        # ── RK8 / DOP853 (red/orange, white trail) ──────────────────
+        pts8_p1, pts8_p2, piv8, r8_1, r8_2, m8_1, m8_2, t8 = build_pendulum_objects(
+            traj_rk8,
+            offset_R,
+            rod1_color=RED,
+            rod2_color=ORANGE,
+            mass1_color=RED,
+            mass2_color=ORANGE,
+            trail_color=WHITE,
+            scale=scale,
+        )
+
+        # ── Labels ───────────────────────────────────────────────────
+        label_y = 3.6
+        lbl4 = Text("RK4", font_size=24, color=BLUE).move_to(
+            np.array([offset_L[0], label_y, 0.0])
+        )
+        lbl_a = Text("RK4 Adaptive", font_size=24, color=PURPLE).move_to(
+            np.array([offset_C[0], label_y, 0.0])
+        )
+        lbl8 = Text("DOP853", font_size=24, color=RED).move_to(
+            np.array([offset_R[0], label_y, 0.0])
+        )
+        caption = Text(
+            "Same IC — three solvers, three trajectories",
+            font_size=20,
+            color=WHITE,
+        ).move_to(np.array([0.0, -3.6, 0.0]))
+
+        # Vertical dividers
+        div_L = Line(
+            np.array([-2.5, -4.0, 0.0]),
+            np.array([-2.5, 4.0, 0.0]),
+            color=WHITE,
+            stroke_width=0.8,
+            stroke_opacity=0.25,
+        )
+        div_R = Line(
+            np.array([2.5, -4.0, 0.0]),
+            np.array([2.5, 4.0, 0.0]),
+            color=WHITE,
+            stroke_width=0.8,
+            stroke_opacity=0.25,
+        )
+
+        self.add(
+            piv4,
+            t4,
+            r4_1,
+            r4_2,
+            m4_1,
+            m4_2,
+            piv_a,
+            t_a,
+            r_a_1,
+            r_a_2,
+            m_a_1,
+            m_a_2,
+            piv8,
+            t8,
+            r8_1,
+            r8_2,
+            m8_1,
+            m8_2,
+            div_L,
+            div_R,
+            lbl4,
+            lbl_a,
+            lbl8,
+            caption,
+        )
+        self.wait(0.3)
+
+        indices, t_step = compute_stride(num_frames)
+        for i in indices:
+            p4_1, p4_2 = pts4_p1[i], pts4_p2[i]
+            p_a_1, p_a_2 = pts_a_p1[i], pts_a_p2[i]
+            p8_1, p8_2 = pts8_p1[i], pts8_p2[i]
+
+            # ── RK4 ──
+            m4_1.move_to(p4_1)
+            m4_2.move_to(p4_2)
+            r4_1.become(Line(piv4.get_center(), p4_1, color=BLUE, stroke_width=6))
+            r4_2.become(Line(p4_1, p4_2, color=GREEN, stroke_width=5))
+            if i % int(np.ceil(t_step * RENDER_FPS) * SUBSAMPLING) == 0:
+                add_trail_dot(
+                    t4,
+                    p4_2,
+                    i,
+                    num_frames,
+                    YELLOW,
+                    int(np.ceil(t_step * RENDER_FPS)),
+                )
+
+            # ── RK4 Adaptive ──
+            m_a_1.move_to(p_a_1)
+            m_a_2.move_to(p_a_2)
+            r_a_1.become(Line(piv_a.get_center(), p_a_1, color=PURPLE, stroke_width=6))
+            r_a_2.become(Line(p_a_1, p_a_2, color=PINK, stroke_width=5))
+            if i % int(np.ceil(t_step * RENDER_FPS) * SUBSAMPLING) == 0:
+                add_trail_dot(
+                    t_a,
+                    p_a_2,
+                    i,
+                    num_frames,
+                    WHITE,
+                    int(np.ceil(t_step * RENDER_FPS)),
+                )
+
+            # ── RK8 ──
+            m8_1.move_to(p8_1)
+            m8_2.move_to(p8_2)
+            r8_1.become(Line(piv8.get_center(), p8_1, color=RED, stroke_width=6))
+            r8_2.become(Line(p8_1, p8_2, color=ORANGE, stroke_width=5))
+            if i % int(np.ceil(t_step * RENDER_FPS) * SUBSAMPLING) == 0:
+                add_trail_dot(
+                    t8,
+                    p8_2,
+                    i,
+                    num_frames,
+                    WHITE,
+                    int(np.ceil(t_step * RENDER_FPS)),
+                )
+
+            self.wait(t_step)
+
+        self.wait(0.01)
+
+
+# ══════════════════════════════════════════════════════════════════════
+#  Scene 4 — RK4 vs RK8 superimposed (transposed) on the same pivot
 # ══════════════════════════════════════════════════════════════════════
 
 
@@ -413,7 +626,7 @@ class DoublePendulumOverlay(Scene):
     """
 
     def construct(self):
-        traj_rk4, traj_rk8, num_frames = load_aligned_trajectories()
+        traj_rk4, _, traj_rk8, num_frames = load_aligned_trajectories()
 
         # Use the combined extent for a single scale
         _, _, x2_4, y2_4 = cartesian_from_traj(traj_rk4)
@@ -528,7 +741,8 @@ if __name__ == "__main__":
     from manim import config
 
     # ── Choose scene ──────────────────────────────────────────────────
-    SCENE = "DoublePendulumOverlay"
+    SCENE = "DoublePendulumThreeWay"
+    # SCENE = "DoublePendulumOverlay"
     # SCENE = "DoublePendulumSideBySide"
     # SCENE = "DoublePendulumEnergy"
     # ──────────────────────────────────────────────────────────────────
@@ -542,6 +756,7 @@ if __name__ == "__main__":
         "DoublePendulumEnergy": DoublePendulumEnergy,
         "DoublePendulumSideBySide": DoublePendulumSideBySide,
         "DoublePendulumOverlay": DoublePendulumOverlay,
+        "DoublePendulumThreeWay": DoublePendulumThreeWay,
     }[SCENE]
 
     scene = scene_class()

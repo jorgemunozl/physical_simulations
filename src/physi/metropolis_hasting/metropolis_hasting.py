@@ -1,19 +1,24 @@
+from typing import Callable
+
 import torch
 
 
-class MH():
+class MH:
     """
     Implementation for the Metropolis Hasting (MH) algorithm
     using a gaussian kernel. Returns a list a samples from
     the target distribution.
     We work with the log form. !
     """
-    def __init__(self, target: Callable[[torch.Tensor], torch.Tensor],
-                 eq_steps: int,
-                 num_samples: int,
-                 dim: int,
-                 step_size: float = 1.0
-                 ):
+
+    def __init__(
+        self,
+        target: Callable[[torch.Tensor], torch.Tensor],
+        eq_steps: int,
+        num_samples: int,
+        dim: int,
+        step_size: float = 1.0,
+    ):
         self.target = target
         self.eq_steps = eq_steps
         self.num_samples = num_samples
@@ -23,8 +28,7 @@ class MH():
         sample = state + torch.randn_like(state)
         return sample
 
-    def accept_decline(self, trial: torch.Tensor,
-                       current_state: torch.Tensor) -> bool:
+    def accept_decline(self, trial: torch.Tensor, current_state: torch.Tensor) -> bool:
         alpha = self.target(trial) - self.target(current_state)
         if torch.rand(()) < torch.exp(torch.minimum(alpha, torch.tensor(0.0))):
             return True
